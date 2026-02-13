@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Image → HTML Generator</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 18px; background:#0b0b0b; color:#fff; }
+    .card { max-width: 900px; margin: 0 auto; background:#121212; border:1px solid #222; border-radius:16px; padding:16px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    input, button { border-radius:12px; border:1px solid #2a2a2a; padding:10px 12px; background:#0f0f0f; color:#fff; }
+    button { cursor:pointer; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .preview { margin-top: 14px; border-radius: 16px; overflow:hidden; border:1px solid #222; background:#0f0f0f; }
+    .preview img { display:block; width:100%; height:auto; }
+    .muted { color:#aaa; font-size: 14px; }
+    .small { font-size: 12px; color:#9aa; margin-top: 8px; line-height: 1.5; }
+    code { background:#0f0f0f; border:1px solid #222; padding:2px 6px; border-radius:8px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2 style="margin:0 0 6px;">Upload Image → Generate HTML</h2>
+    <p class="muted" style="margin:0 0 14px;">
+      No storage. Image stays on your device. You’ll download an HTML file that shows your image.
+    </p>
+
+    <div class="row">
+      <input id="file" type="file" accept="image/*" />
+      <input id="title" type="text" placeholder="Page title (optional)" style="min-width:220px;" />
+      <button id="makeBtn" disabled>Download HTML</button>
+    </div>
+
+    <div class="small">
+      Tip: After download, open <code>image-page.html</code>. If you want the generated page to be shareable publicly,
+      you must host the image somewhere (storage/hosting). This tool is for personal/offline use.
+    </div>
+
+    <div class="preview" id="previewBox" style="display:none;">
+      <img id="previewImg" alt="Preview" />
+    </div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById("file");
+    const titleInput = document.getElementById("title");
+    const makeBtn = document.getElementById("makeBtn");
+    const previewBox = document.getElementById("previewBox");
+    const previewImg = document.getElementById("previewImg");
+
+    let dataUrl = null;
+
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+
+      // Read image as base64 (Data URL) so it can be embedded into the generated HTML
+      dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      previewImg.src = dataUrl;
+      previewBox.style.display = "block";
+      makeBtn.disabled = false;
+    });
+
+    makeBtn.addEventListener("click", () => {
+      if (!dataUrl) return;
+
+      const pageTitle = (titleInput.value || "My Image Page").trim();
+
+      const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${escapeHtml(pageTitle)}</title>
+  <style>
+    body{margin:0;min-height:100vh;display:grid;place-items:center;background:#000;color:#fff;font-family:Arial,sans-serif;}
+    .wrap{width:min(1000px,92vw);padding:18px;}
+    .card{border:1px solid #222;border-radius:18px;overflow:hidden;background:#0f0f0f;box-shadow:0 10px 40px rgba(0,0,0,.35);}
+    img{display:block;width:100%;height:auto;}
+    h1{margin:0;padding:12px 14px;font-size:18px;color:#ddd;border-top:1px solid #222;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <img src="${dataUrl}" alt="Uploaded image"/>
+      <h1>${escapeHtml(pageTitle)}</h1>
+    </div>
+  </div>
+</body>
+</html>`;
+
+      const blob = new Blob([html], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "image-page.html";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      URL.revokeObjectURL(url);
+    });
+
+    function escapeHtml(str){
+      return str
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+  </script>
+</body>
+</html>
